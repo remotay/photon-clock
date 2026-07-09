@@ -91,7 +91,7 @@ function TimeDilationChart({ beta, gamma }: { beta: number; gamma: number }) {
   );
 }
 
-export default function Home() {
+function TimeDilationView() {
   const stationaryCanvas = useRef<HTMLCanvasElement>(null);
   const movingCanvas = useRef<HTMLCanvasElement>(null);
   const betaRef = useRef(0.72);
@@ -398,7 +398,7 @@ export default function Home() {
   };
 
   return (
-    <main>
+    <div className="time-dilation-view">
       <header className="hero">
         <div>
           <p className="eyebrow"><span /> AN INTERACTIVE THOUGHT EXPERIMENT</p>
@@ -518,6 +518,208 @@ export default function Home() {
           from the laboratory’s point of view. The speed of light stays constant; the clock’s time does not.
         </p>
       </footer>
+    </div>
+  );
+}
+
+type MemoryTier = {
+  id: string;
+  label: string;
+  detail: string;
+  relativeSpeed: number;
+  category: "cache" | "memory" | "storage";
+};
+
+const MEMORY_TIERS: MemoryTier[] = [
+  { id: "hdd", label: "Hard drive", detail: "Mechanical storage · baseline", relativeSpeed: 1, category: "storage" },
+  { id: "ssd", label: "SSD", detail: "Solid-state storage", relativeSpeed: 100, category: "storage" },
+  { id: "ddr5", label: "DDR5", detail: "System memory", relativeSpeed: 100_000, category: "memory" },
+  { id: "l3", label: "L3 cache", detail: "Shared cache", relativeSpeed: 1_000_000, category: "cache" },
+  { id: "l2", label: "L2 cache", detail: "Closer to the core", relativeSpeed: 3_000_000, category: "cache" },
+  { id: "l1", label: "L1 cache", detail: "Closest to the core", relativeSpeed: 10_000_000, category: "cache" },
+];
+
+function formatRelativeSpeed(speed: number) {
+  if (speed >= 1_000_000) return `${speed / 1_000_000}M×`;
+  if (speed >= 1_000) return `${speed / 1_000}K×`;
+  return `${speed}×`;
+}
+
+const HDD_TRIP_MS = 8_000_000_000;
+
+function formatTripTime(milliseconds: number) {
+  const day = 86_400_000;
+  const hour = 3_600_000;
+  if (milliseconds >= day) return `${(milliseconds / day).toFixed(1)} days`;
+  if (milliseconds >= hour) return `${(milliseconds / hour).toFixed(1)} hours`;
+  if (milliseconds >= 60_000) {
+    const minutes = Math.floor(milliseconds / 60_000);
+    const seconds = Math.round((milliseconds % 60_000) / 1000);
+    return `${minutes} min ${seconds} sec`;
+  }
+  return `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} seconds`;
+}
+
+function MemorySpeedView() {
+  const dotRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const progressRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const progressTextRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      MEMORY_TIERS.forEach((tier, index) => {
+        const position = 0.18 + index * 0.14;
+        if (dotRefs.current[tier.id]) dotRefs.current[tier.id]!.style.left = `${position * 100}%`;
+        if (progressRefs.current[tier.id]) progressRefs.current[tier.id]!.style.width = `${position * 100}%`;
+      });
+      return;
+    }
+
+    const start = performance.now();
+    let frame = 0;
+    let lastTextUpdate = 0;
+    const animate = (now: number) => {
+      MEMORY_TIERS.forEach((tier) => {
+        const oneWayDurationMs = HDD_TRIP_MS / tier.relativeSpeed;
+        const trip = (now - start) / oneWayDurationMs;
+        const phase = trip % 2;
+        const position = phase <= 1 ? phase : 2 - phase;
+        const dot = dotRefs.current[tier.id];
+        const progress = progressRefs.current[tier.id];
+        if (dot) dot.style.left = `${position * 100}%`;
+        if (progress) progress.style.width = `${position * 100}%`;
+        if (now - lastTextUpdate > 100 && progressTextRefs.current[tier.id]) {
+          const precision = tier.relativeSpeed <= 100 ? 5 : tier.relativeSpeed < 1_000_000 ? 2 : 1;
+          progressTextRefs.current[tier.id]!.textContent = `${(position * 100).toFixed(precision)}% across`;
+        }
+      });
+      if (now - lastTextUpdate > 100) lastTextUpdate = now;
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div className="memory-speed-view">
+      <header className="memory-hero">
+        <div>
+          <p className="eyebrow"><span /> COMPUTER ARCHITECTURE · 02</p>
+          <h1>A nanosecond<br />is a <em>world.</em></h1>
+        </div>
+        <p className="intro">
+          Every point travels the same distance on one literal relative scale. L1 crosses in
+          0.8 seconds. At 1/10,000,000th the speed, the hard drive needs more than three months.
+        </p>
+      </header>
+
+      <div className="race-explainer">
+        <div><span className="explainer-dot" /> SLOWEST AT TOP · FASTEST AT BOTTOM</div>
+        <p><strong>True relative motion.</strong> 0.8 sec for L1 = 92.6 days for HDD.</p>
+      </div>
+
+      <section className="memory-race" aria-label="Literal relative memory and storage speed race">
+        <div className="race-key">
+          <span>REQUEST START</span>
+          <span>DATA ARRIVES</span>
+        </div>
+        {MEMORY_TIERS.map((tier, index) => (
+            <article
+              className={`memory-lane memory-${tier.category}`}
+              key={tier.id}
+            >
+              <div className="memory-label">
+                <span className="memory-index">{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h2>{tier.label}</h2>
+                  <p>{tier.detail}</p>
+                </div>
+              </div>
+              <div className="memory-motion">
+                <div className="memory-track">
+                  <span
+                    className="memory-progress"
+                    ref={(element) => { progressRefs.current[tier.id] = element; }}
+                  />
+                  <span
+                    className="memory-dot"
+                    ref={(element) => { dotRefs.current[tier.id] = element; }}
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="memory-meta">
+                  <span className="speed-number"><strong>{formatRelativeSpeed(tier.relativeSpeed)}</strong> relative speed</span>
+                  <span><strong>{formatTripTime(HDD_TRIP_MS / tier.relativeSpeed)}</strong> per one-way trip</span>
+                  <span
+                    className="live-progress"
+                    ref={(element) => { progressTextRefs.current[tier.id] = element; }}
+                    aria-live="off"
+                  >0% across</span>
+                </div>
+              </div>
+            </article>
+        ))}
+      </section>
+
+      <footer className="memory-note">
+        <p><span className="footer-mark">✦</span><strong>How to read the race</strong></p>
+        <p>
+          The displayed multipliers and movement now use exactly the same scale. Slow points may appear
+          stationary, so their live percentage reveals the tiny distance covered while cache races past.
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+type ViewId = "time-dilation" | "memory-speed";
+
+export default function Home() {
+  const [view, setView] = useState<ViewId>("time-dilation");
+
+  useEffect(() => {
+    const syncHash = () => {
+      setView(window.location.hash === "#memory-speed" ? "memory-speed" : "time-dilation");
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+
+  return (
+    <main className="app-shell">
+      <aside className="site-nav">
+        <div className="nav-brand">
+          <span className="brand-orbit"><span /></span>
+          <div><strong>Visual Atlas</strong><span>Ideas in motion</span></div>
+        </div>
+        <nav aria-label="Visualization library">
+          <p>EXPERIMENTS</p>
+          <a
+            href="#time-dilation"
+            className={view === "time-dilation" ? "is-active" : ""}
+            aria-current={view === "time-dilation" ? "page" : undefined}
+            onClick={() => setView("time-dilation")}
+          >
+            <span className="nav-number">01</span>
+            <span><strong>Time dilation</strong><small>Special relativity</small></span>
+          </a>
+          <a
+            href="#memory-speed"
+            className={view === "memory-speed" ? "is-active" : ""}
+            aria-current={view === "memory-speed" ? "page" : undefined}
+            onClick={() => setView("memory-speed")}
+          >
+            <span className="nav-number">02</span>
+            <span><strong>Memory speed</strong><small>Computer architecture</small></span>
+          </a>
+        </nav>
+        <div className="nav-footer"><span>02</span> INTERACTIVE STUDIES</div>
+      </aside>
+      <section className="view-stage" aria-live="polite">
+        {view === "time-dilation" ? <TimeDilationView /> : <MemorySpeedView />}
+      </section>
     </main>
   );
 }

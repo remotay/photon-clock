@@ -1,14 +1,11 @@
-# Photon Clock
+# Visual Atlas
 
-An interactive visualization of special-relativistic time dilation using two photon clocks. One clock stays in the laboratory frame while the other moves horizontally, forcing its photon to follow a longer diagonal path.
+A growing collection of interactive explainers for physics, computing, and other invisible systems. A responsive navigation shell makes each experiment independently accessible while keeping the collection easy to extend.
 
-The experiment includes:
+## Current visualizations
 
-- live, diverging tick counters
-- an adjustable velocity gauge from `0` to `0.95c`
-- a continuously updated Lorentz factor (`γ`)
-- pause, resume, and reset controls
-- responsive canvas animation
+- **Time dilation:** paired photon clocks, a tracking camera, live tick drift, adjustable velocity, and a Lorentz-factor curve.
+- **Memory speed:** an illustrative slowest-to-fastest race across HDD, SSD, DDR5, and L3/L2/L1 cache. The displayed multipliers drive the motion literally: a visible 0.8-second L1 trip makes the matching HDD trip take 92.6 days.
 
 ## Run locally
 

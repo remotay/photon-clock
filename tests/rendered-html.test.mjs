@@ -18,6 +18,10 @@ test("ships the photon-clock experiment and finished metadata", async () => {
   assert.match(page, /data-testid="velocity-slider"/);
   assert.match(page, /stationaryCanvas/);
   assert.match(page, /movingCanvas/);
+  assert.match(page, /CAMERA LOCKED TO CLOCK/);
+  assert.match(page, /Time dilation rises slowly/);
+  assert.match(page, /chart-marker/);
+  assert.doesNotMatch(page, /movingX > movingWidth/);
   assert.doesNotMatch(page, /SkeletonPreview|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

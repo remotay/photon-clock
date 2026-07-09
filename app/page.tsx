@@ -19,6 +19,78 @@ function photonY(phase: number, top: number, bottom: number) {
     : top + ((phase - 0.5) / 0.5) * (bottom - top);
 }
 
+function TimeDilationChart({ beta, gamma }: { beta: number; gamma: number }) {
+  const plot = { left: 72, right: 864, top: 28, bottom: 230 };
+  const maxGamma = 3.25;
+  const xFor = (velocity: number) =>
+    plot.left + (velocity / 0.95) * (plot.right - plot.left);
+  const yFor = (factor: number) =>
+    plot.bottom - ((factor - 1) / (maxGamma - 1)) * (plot.bottom - plot.top);
+  const samples = Array.from({ length: 96 }, (_, index) => {
+    const velocity = index / 100;
+    const factor = 1 / Math.sqrt(1 - velocity * velocity);
+    return `${xFor(velocity).toFixed(2)},${yFor(factor).toFixed(2)}`;
+  });
+  const curve = `M ${samples.join(" L ")}`;
+  const area = `${curve} L ${plot.right},${plot.bottom} L ${plot.left},${plot.bottom} Z`;
+  const markerX = xFor(beta);
+  const markerY = yFor(gamma);
+  const labelOnLeft = markerX > 725;
+
+  return (
+    <section className="dilation-chart" aria-labelledby="dilation-chart-title">
+      <div className="chart-heading">
+        <div>
+          <p className="chart-kicker">THE RELATIVISTIC CURVE</p>
+          <h2 id="dilation-chart-title">Time dilation rises slowly—then all at once.</h2>
+        </div>
+        <p className="chart-summary">
+          At <strong>{beta.toFixed(2)}c</strong>, 1 second aboard the moving clock spans
+          <strong> {gamma.toFixed(3)} seconds</strong> in the lab.
+        </p>
+      </div>
+      <svg
+        className="gamma-chart"
+        viewBox="0 0 900 285"
+        role="img"
+        aria-label={`Lorentz factor curve from zero to 0.95 times light speed. The selected velocity is ${beta.toFixed(2)}c with a Lorentz factor of ${gamma.toFixed(3)}.`}
+      >
+        <title>Lorentz factor by velocity</title>
+        <desc>The curve becomes sharply steeper as velocity approaches the speed of light.</desc>
+        {[1, 1.5, 2, 2.5, 3].map((factor) => (
+          <g key={factor}>
+            <line className="chart-grid-line" x1={plot.left} x2={plot.right} y1={yFor(factor)} y2={yFor(factor)} />
+            <text className="chart-axis-label" x={plot.left - 14} y={yFor(factor) + 4} textAnchor="end">{factor.toFixed(1)}×</text>
+          </g>
+        ))}
+        {[0, 0.25, 0.5, 0.75, 0.95].map((velocity) => (
+          <g key={velocity}>
+            <line className="chart-tick" x1={xFor(velocity)} x2={xFor(velocity)} y1={plot.bottom} y2={plot.bottom + 6} />
+            <text className="chart-axis-label" x={xFor(velocity)} y={plot.bottom + 23} textAnchor="middle">
+              {velocity === 0 ? "0" : `${velocity.toFixed(2)}c`}
+            </text>
+          </g>
+        ))}
+        <path className="chart-area" d={area} />
+        <path className="chart-curve" d={curve} />
+        <line className="chart-marker-line" x1={markerX} x2={markerX} y1={markerY} y2={plot.bottom} />
+        <circle className="chart-marker-halo" cx={markerX} cy={markerY} r="12" />
+        <circle className="chart-marker" cx={markerX} cy={markerY} r="5" />
+        <text
+          className="chart-marker-label"
+          x={markerX + (labelOnLeft ? -14 : 14)}
+          y={Math.max(markerY - 10, 22)}
+          textAnchor={labelOnLeft ? "end" : "start"}
+        >
+          γ {gamma.toFixed(3)}
+        </text>
+        <text className="chart-axis-title" x={(plot.left + plot.right) / 2} y="278" textAnchor="middle">VELOCITY</text>
+        <text className="chart-axis-title" transform="translate(16 140) rotate(-90)" textAnchor="middle">LAB TIME PER MOVING SECOND</text>
+      </svg>
+    </section>
+  );
+}
+
 export default function Home() {
   const stationaryCanvas = useRef<HTMLCanvasElement>(null);
   const movingCanvas = useRef<HTMLCanvasElement>(null);
@@ -49,7 +121,7 @@ export default function Home() {
       movingPhase: 0,
       stationaryTicks: 0,
       movingTicks: 0,
-      movingX: 86,
+      movingX: 0,
       movingSegments: [],
     };
     let animationFrame = 0;
@@ -190,9 +262,9 @@ export default function Home() {
       const { ctx, width, height, color } = setup;
       const top = 66;
       const bottom = height - 48;
-      const x = state.movingX;
-      const cameraOffset = -((state.movingX - 86) * 0.22);
-      drawGrid(ctx, width, height, color.grid, cameraOffset);
+      const x = width * 0.58;
+      const cameraX = state.movingX - x;
+      drawGrid(ctx, width, height, color.grid, -cameraX);
 
       ctx.save();
       ctx.beginPath();
@@ -206,8 +278,8 @@ export default function Home() {
       state.movingSegments.forEach((segment, index) => {
         ctx.globalAlpha = 0.16 + 0.54 * ((index + 1) / Math.max(1, state.movingSegments.length));
         ctx.beginPath();
-        ctx.moveTo(segment.x1, segment.y1);
-        ctx.lineTo(segment.x2, segment.y2);
+        ctx.moveTo(segment.x1 - cameraX, segment.y1);
+        ctx.lineTo(segment.x2 - cameraX, segment.y2);
         ctx.stroke();
       });
       const currentY = photonY(state.movingPhase, top, bottom);
@@ -217,10 +289,10 @@ export default function Home() {
         : (state.movingPhase - 0.5) / 0.5;
       const legDuration = BASE_TICK_SECONDS * (1 / Math.sqrt(1 - betaRef.current ** 2));
       const cPixelsPerSecond = (bottom - top) / BASE_TICK_SECONDS;
-      const currentStartX = x - betaRef.current * cPixelsPerSecond * phaseInLeg * legDuration;
+      const currentStartWorldX = state.movingX - betaRef.current * cPixelsPerSecond * phaseInLeg * legDuration;
       ctx.globalAlpha = 0.95;
       ctx.beginPath();
-      ctx.moveTo(currentStartX, previousY);
+      ctx.moveTo(currentStartWorldX - cameraX, previousY);
       ctx.lineTo(x, currentY);
       ctx.stroke();
       ctx.restore();
@@ -251,7 +323,7 @@ export default function Home() {
         state.movingPhase = 0;
         state.stationaryTicks = 0;
         state.movingTicks = 0;
-        state.movingX = 86;
+        state.movingX = 0;
         state.movingSegments = [];
         lastReset = resetRef.current;
       }
@@ -287,14 +359,8 @@ export default function Home() {
             x2: state.movingX,
             y2: bounceY,
           });
-          state.movingSegments = state.movingSegments.slice(-7);
+          state.movingSegments = state.movingSegments.slice(-12);
           state.movingTicks += 1;
-        }
-
-        const movingWidth = canvases[1]!.getBoundingClientRect().width;
-        if (state.movingX > movingWidth + 80) {
-          state.movingX = 78;
-          state.movingSegments = [];
         }
       }
 
@@ -388,8 +454,9 @@ export default function Home() {
             <canvas
               ref={movingCanvas}
               className="clock-canvas"
-              aria-label="A moving photon clock where light traces a longer diagonal path between mirrors"
+              aria-label="A tracking-camera view of a moving photon clock where light traces a longer diagonal path between mirrors"
             />
+            <span className="camera-lock"><span /> CAMERA LOCKED TO CLOCK</span>
             <span className="path-label angle-label">longer diagonal path</span>
             <span className="motion-arrow">DIRECTION OF MOTION&nbsp;&nbsp;→</span>
           </div>
@@ -441,6 +508,8 @@ export default function Home() {
           <button type="button" className="reset-button" onClick={reset}>Reset ticks</button>
         </div>
       </section>
+
+      <TimeDilationChart beta={beta} gamma={gamma} />
 
       <footer>
         <p><span className="footer-mark">✦</span><strong>What you’re seeing</strong></p>

@@ -153,6 +153,29 @@ h2 { margin: 0 0 4px; font-family: Georgia, "Times New Roman", serif; font-size:
 .angle-label { left: 42%; top: 37%; transform: rotate(-32deg); color: var(--moving); }
 .motion-arrow { right: 20px; bottom: 17px; color: var(--moving); }
 
+.camera-lock {
+  position: absolute;
+  top: 15px;
+  left: 17px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--moving);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  pointer-events: none;
+}
+
+.camera-lock span {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--moving);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0 0 4px rgba(19, 141, 132, 0.12);
+}
+
 .rate-line {
   display: flex;
   justify-content: space-between;
@@ -247,6 +270,118 @@ input[type="range"]:focus-visible { outline: 2px solid var(--moving); outline-of
 .actions .reset-button { border-top: 1px solid var(--line); color: var(--muted); }
 .button-icon { display: inline-block; min-width: 17px; margin-right: 5px; color: var(--moving); }
 
+.dilation-chart {
+  margin-top: 16px;
+  padding: 26px 30px 17px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.chart-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(270px, 0.75fr);
+  gap: 44px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.chart-kicker {
+  margin: 0 0 8px;
+  color: var(--moving);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+}
+
+.chart-heading h2 {
+  max-width: 720px;
+  font-size: clamp(25px, 3vw, 42px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+}
+
+.chart-summary {
+  margin: 0 0 3px;
+  padding-left: 18px;
+  border-left: 2px solid var(--moving);
+  color: var(--muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.chart-summary strong { color: var(--ink); font-weight: 400; }
+
+.gamma-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gamma-chart .chart-grid-line {
+  stroke: rgba(25, 52, 54, 0.11);
+  stroke-width: 1;
+}
+
+.gamma-chart .chart-tick {
+  stroke: var(--canvas-muted);
+  stroke-width: 1;
+}
+
+.gamma-chart .chart-axis-label {
+  fill: var(--muted);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.gamma-chart .chart-axis-title {
+  fill: var(--muted);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.gamma-chart .chart-area { fill: rgba(19, 141, 132, 0.08); }
+
+.gamma-chart .chart-curve {
+  fill: none;
+  stroke: var(--moving);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gamma-chart .chart-marker-line {
+  stroke: var(--moving);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+  opacity: 0.72;
+  transition: x1 180ms ease, x2 180ms ease, y1 180ms ease;
+}
+
+.gamma-chart .chart-marker-halo {
+  fill: rgba(19, 141, 132, 0.17);
+  transition: cx 180ms ease, cy 180ms ease;
+}
+
+.gamma-chart .chart-marker {
+  fill: var(--paper);
+  stroke: var(--moving);
+  stroke-width: 3;
+  transition: cx 180ms ease, cy 180ms ease;
+}
+
+.gamma-chart .chart-marker-label {
+  fill: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+  font-style: italic;
+  transition: x 180ms ease, y 180ms ease;
+}
+
 footer {
   display: grid;
   grid-template-columns: 210px 1fr;
@@ -272,6 +407,8 @@ footer strong { color: var(--ink); }
   .gamma-display { min-width: 0; border: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .actions { grid-template-columns: 1fr 1fr; grid-template-rows: 52px; }
   .actions .reset-button { border-top: 0; border-left: 1px solid var(--line); }
+  .chart-heading { grid-template-columns: 1fr; gap: 18px; }
+  .chart-summary { max-width: 590px; }
 }
 
 @media (max-width: 560px) {
@@ -290,6 +427,16 @@ footer strong { color: var(--ink); }
   .gamma-display strong { font-size: 30px; }
   .velocity-control { padding-inline: 16px; }
   .range-scale span:nth-child(2), .range-scale span:nth-child(4) { display: none; }
+  .dilation-chart { padding: 22px 13px 14px; }
+  .chart-heading h2 { font-size: 28px; }
+  .chart-summary { font-size: 14px; }
+  .gamma-chart .chart-axis-label { font-size: 26px; }
+  .gamma-chart .chart-axis-title { font-size: 21px; }
+  .gamma-chart .chart-marker-label { font-size: 34px; }
+  .gamma-chart .chart-curve { stroke-width: 5; }
+  .gamma-chart .chart-marker-line { stroke-width: 3; stroke-dasharray: 10 11; }
+  .gamma-chart .chart-marker-halo { r: 18px; }
+  .gamma-chart .chart-marker { r: 8px; stroke-width: 5; }
   footer { grid-template-columns: 1fr; gap: 8px; }
 }
 

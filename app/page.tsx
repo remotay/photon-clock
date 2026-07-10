@@ -6,11 +6,15 @@ const BASE_TICK_SECONDS = 0.78;
 
 type ClockState = {
   stationaryPhase: number;
-  movingPhase: number;
   stationaryTicks: number;
   movingTicks: number;
   movingX: number;
-  movingSegments: Array<{ x1: number; y1: number; x2: number; y2: number }>;
+  movingY: number;
+  movingDirection: -1 | 1;
+  movingVisualBeta: number;
+  movingTrail: Array<{ x: number; y: number; t: number }>;
+  movingFlash: { y: number; t: number } | null;
+  simTime: number;
 };
 
 function photonY(phase: number, top: number, bottom: number) {
@@ -103,6 +107,7 @@ function TimeDilationView() {
 
   const gamma = 1 / Math.sqrt(1 - beta * beta);
   const movingRate = 1 / gamma;
+  const photonPathAngle = Math.atan2(Math.sqrt(1 - beta * beta), beta) * (180 / Math.PI);
 
   useEffect(() => {
     betaRef.current = beta;
@@ -118,11 +123,15 @@ function TimeDilationView() {
 
     const state: ClockState = {
       stationaryPhase: 0,
-      movingPhase: 0,
       stationaryTicks: 0,
       movingTicks: 0,
       movingX: 0,
-      movingSegments: [],
+      movingY: 0,
+      movingDirection: -1,
+      movingVisualBeta: betaRef.current,
+      movingTrail: [],
+      movingFlash: null,
+      simTime: 0,
     };
     let animationFrame = 0;
     let previous = performance.now();
@@ -274,27 +283,25 @@ function TimeDilationView() {
       ctx.lineWidth = 2.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.globalAlpha = 0.7;
-      state.movingSegments.forEach((segment, index) => {
-        ctx.globalAlpha = 0.16 + 0.54 * ((index + 1) / Math.max(1, state.movingSegments.length));
+      for (let index = 1; index < state.movingTrail.length; index += 1) {
+        const previousPoint = state.movingTrail[index - 1];
+        const point = state.movingTrail[index];
+        const age = Math.max(0, (state.simTime - point.t) / 3.6);
+        const alpha = Math.max(0, 1 - age) ** 2;
+        ctx.globalAlpha = alpha * 0.22;
+        ctx.lineWidth = 7;
         ctx.beginPath();
-        ctx.moveTo(segment.x1 - cameraX, segment.y1);
-        ctx.lineTo(segment.x2 - cameraX, segment.y2);
+        ctx.moveTo(previousPoint.x - cameraX, previousPoint.y);
+        ctx.lineTo(point.x - cameraX, point.y);
         ctx.stroke();
-      });
-      const currentY = photonY(state.movingPhase, top, bottom);
-      const previousY = state.movingPhase <= 0.5 ? bottom : top;
-      const phaseInLeg = state.movingPhase <= 0.5
-        ? state.movingPhase / 0.5
-        : (state.movingPhase - 0.5) / 0.5;
-      const legDuration = BASE_TICK_SECONDS * (1 / Math.sqrt(1 - betaRef.current ** 2));
-      const cPixelsPerSecond = (bottom - top) / BASE_TICK_SECONDS;
-      const currentStartWorldX = state.movingX - betaRef.current * cPixelsPerSecond * phaseInLeg * legDuration;
-      ctx.globalAlpha = 0.95;
-      ctx.beginPath();
-      ctx.moveTo(currentStartWorldX - cameraX, previousY);
-      ctx.lineTo(x, currentY);
-      ctx.stroke();
+        ctx.globalAlpha = alpha * 0.88;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(previousPoint.x - cameraX, previousPoint.y);
+        ctx.lineTo(point.x - cameraX, point.y);
+        ctx.stroke();
+      }
+      const currentY = Math.max(top, Math.min(bottom, state.movingY || bottom));
       ctx.restore();
 
       ctx.strokeStyle = color.ink;
@@ -311,6 +318,19 @@ function TimeDilationView() {
       ctx.strokeStyle = color.grid;
       ctx.lineWidth = 1;
       roundedRect(ctx, x - 40, bottom + 18, 80, 18, 9);
+      if (state.movingFlash) {
+        const flashAge = state.simTime - state.movingFlash.t;
+        if (flashAge < 0.38) {
+          const radius = 12 + flashAge * 62;
+          const flash = ctx.createRadialGradient(x, state.movingFlash.y, 0, x, state.movingFlash.y, radius);
+          flash.addColorStop(0, `rgba(26, 165, 155, ${0.35 * (1 - flashAge / 0.38)})`);
+          flash.addColorStop(1, "rgba(26, 165, 155, 0)");
+          ctx.fillStyle = flash;
+          ctx.beginPath();
+          ctx.arc(x, state.movingFlash.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       drawPhoton(ctx, x, currentY, color.cool);
     };
 
@@ -320,47 +340,67 @@ function TimeDilationView() {
 
       if (lastReset !== resetRef.current) {
         state.stationaryPhase = 0;
-        state.movingPhase = 0;
         state.stationaryTicks = 0;
         state.movingTicks = 0;
         state.movingX = 0;
-        state.movingSegments = [];
+        state.movingY = bottomFor(canvases[1]!);
+        state.movingDirection = -1;
+        state.movingVisualBeta = betaRef.current;
+        state.movingTrail = [{ x: 0, y: state.movingY, t: 0 }];
+        state.movingFlash = null;
+        state.simTime = 0;
         lastReset = resetRef.current;
       }
 
       if (!pausedRef.current) {
-        const currentBeta = betaRef.current;
+        state.simTime += rawDt;
+        const blend = 1 - Math.exp(-rawDt * 8);
+        state.movingVisualBeta += (betaRef.current - state.movingVisualBeta) * blend;
+        const currentBeta = state.movingVisualBeta;
         const currentGamma = 1 / Math.sqrt(1 - currentBeta ** 2);
         const stationaryAdvance = rawDt / (BASE_TICK_SECONDS * 2);
-        const movingAdvance = rawDt / (BASE_TICK_SECONDS * 2 * currentGamma);
         const oldStationaryLeg = Math.floor(state.stationaryPhase * 2);
-        const oldMovingLeg = Math.floor(state.movingPhase * 2);
 
         state.stationaryPhase += stationaryAdvance;
-        state.movingPhase += movingAdvance;
-        const movingLightSpeed = (bottomFor(canvases[1]!) - 66) / BASE_TICK_SECONDS;
-        state.movingX += currentBeta * movingLightSpeed * rawDt;
+        const movingBottom = bottomFor(canvases[1]!);
+        if (state.movingY <= 0 || state.movingY > movingBottom) state.movingY = movingBottom;
+        const movingLightSpeed = (movingBottom - 66) / BASE_TICK_SECONDS;
+        const oldX = state.movingX;
+        const oldY = state.movingY;
+        const horizontalStep = currentBeta * movingLightSpeed * rawDt;
+        const verticalStep = state.movingDirection * (movingLightSpeed / currentGamma) * rawDt;
+        state.movingX = oldX + horizontalStep;
+        let nextY = oldY + verticalStep;
+        if (nextY < 66 || nextY > movingBottom) {
+          const mirrorY = nextY < 66 ? 66 : movingBottom;
+          const collisionFraction = Math.max(0, Math.min(1, (mirrorY - oldY) / verticalStep));
+          state.movingTrail.push({
+            x: oldX + horizontalStep * collisionFraction,
+            y: mirrorY,
+            t: state.simTime - rawDt + rawDt * collisionFraction,
+          });
+          if (nextY < 66) {
+            nextY = 66 + (66 - nextY);
+            state.movingDirection = 1;
+          } else {
+            nextY = movingBottom - (nextY - movingBottom);
+            state.movingDirection = -1;
+          }
+          state.movingTicks += 1;
+          state.movingFlash = { y: mirrorY, t: state.simTime };
+        }
+        state.movingY = nextY;
+        state.movingTrail.push({ x: state.movingX, y: state.movingY, t: state.simTime });
+        while (state.movingTrail.length > 2 && state.simTime - state.movingTrail[0].t > 3.6) {
+          state.movingTrail.shift();
+        }
+        if (state.movingTrail.length > 420) state.movingTrail.splice(0, state.movingTrail.length - 420);
 
         if (state.stationaryPhase >= 1) state.stationaryPhase %= 1;
-        if (state.movingPhase >= 1) state.movingPhase %= 1;
 
         const newStationaryLeg = Math.floor(state.stationaryPhase * 2);
-        const newMovingLeg = Math.floor(state.movingPhase * 2);
         if (newStationaryLeg !== oldStationaryLeg || stationaryAdvance > 0.5) {
           state.stationaryTicks += 1;
-        }
-        if (newMovingLeg !== oldMovingLeg || movingAdvance > 0.5) {
-          const bounceY = newMovingLeg === 0 ? bottomFor(canvases[1]!) : 66;
-          const oldY = newMovingLeg === 0 ? 66 : bottomFor(canvases[1]!);
-          const legTime = BASE_TICK_SECONDS * currentGamma;
-          state.movingSegments.push({
-            x1: state.movingX - currentBeta * movingLightSpeed * legTime,
-            y1: oldY,
-            x2: state.movingX,
-            y2: bounceY,
-          });
-          state.movingSegments = state.movingSegments.slice(-12);
-          state.movingTicks += 1;
         }
       }
 
@@ -378,6 +418,9 @@ function TimeDilationView() {
 
     const bottomFor = (canvas: HTMLCanvasElement) =>
       canvas.getBoundingClientRect().height - 48;
+
+    state.movingY = bottomFor(canvases[1]!);
+    state.movingTrail = [{ x: 0, y: state.movingY, t: 0 }];
 
     const observer = new ResizeObserver(() => {
       drawStationary();
@@ -457,7 +500,10 @@ function TimeDilationView() {
               aria-label="A tracking-camera view of a moving photon clock where light traces a longer diagonal path between mirrors"
             />
             <span className="camera-lock"><span /> CAMERA LOCKED TO CLOCK</span>
-            <span className="path-label angle-label">longer diagonal path</span>
+            <span
+              className="path-label angle-label"
+              style={{ "--path-angle": `${-photonPathAngle}deg` } as React.CSSProperties}
+            >longer diagonal path</span>
             <span className="motion-arrow">DIRECTION OF MOTION&nbsp;&nbsp;→</span>
           </div>
           <div className="rate-line"><span>Observed rate</span><strong>{movingRate.toFixed(3)} ×</strong></div>

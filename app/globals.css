@@ -382,7 +382,7 @@ h2 { margin: 0 0 4px; font-family: Georgia, "Times New Roman", serif; font-size:
 }
 
 .vertical-label { left: calc(50% + 18px); top: 50%; transform: rotate(-90deg) translateX(50%); transform-origin: center; }
-.angle-label { left: 42%; top: 37%; transform: rotate(-32deg); color: var(--moving); }
+.angle-label { left: 42%; top: 37%; transform: rotate(var(--path-angle, -32deg)); transform-origin: left center; color: var(--moving); transition: transform 220ms ease; }
 .motion-arrow { right: 20px; bottom: 17px; color: var(--moving); }
 
 .camera-lock {

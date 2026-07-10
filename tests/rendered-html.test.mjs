@@ -19,6 +19,10 @@ test("ships the Visual Atlas experiments and finished metadata", async () => {
   assert.match(page, /stationaryCanvas/);
   assert.match(page, /movingCanvas/);
   assert.match(page, /CAMERA LOCKED TO CLOCK/);
+  assert.match(page, /movingVisualBeta/);
+  assert.match(page, /movingTrail/);
+  assert.match(page, /photonPathAngle/);
+  assert.doesNotMatch(page, /currentStartWorldX|movingSegments/);
   assert.match(page, /Time dilation rises slowly/);
   assert.match(page, /chart-marker/);
   assert.match(page, /Memory speed/);

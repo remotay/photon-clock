@@ -6,6 +6,7 @@ A growing collection of interactive explainers for physics, computing, and other
 
 - **Time dilation:** paired photon clocks, a tracking camera, live tick drift, adjustable velocity, and a Lorentz-factor curve.
 - **Memory speed:** an illustrative slowest-to-fastest race across HDD, SSD, DDR5, and L3/L2/L1 cache. The displayed multipliers drive the motion literally: a visible 0.8-second L1 trip makes the matching HDD trip take 92.6 days.
+- **Memory bandwidth:** equal-distance motion comparing dual-channel PC DDR5, Mac Studio unified memory, RTX 5090 GDDR7, and Blackwell Ultra HBM3e at their literal peak-bandwidth ratios.
 
 ## Run locally
 

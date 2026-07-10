@@ -30,6 +30,14 @@ test("ships the Visual Atlas experiments and finished metadata", async () => {
   assert.match(page, /HDD_TRIP_MS/);
   assert.match(page, /True relative motion/);
   assert.match(page, /live-progress/);
+  assert.match(page, /Memory bandwidth/);
+  assert.match(page, /BANDWIDTH_TIERS/);
+  assert.match(page, /102\.4/);
+  assert.match(page, /819/);
+  assert.match(page, /1_792/);
+  assert.match(page, /8_000/);
+  assert.match(page, /bandwidth-dot/);
+  assert.match(page, /DDR5_CROSSING_SECONDS = 8/);
   assert.doesNotMatch(page, /TIME_LENSES|time-lens/);
   assert.ok(page.indexOf('label: "Hard drive"') < page.indexOf('label: "SSD"'));
   assert.ok(page.indexOf('label: "SSD"') < page.indexOf('label: "DDR5"'));

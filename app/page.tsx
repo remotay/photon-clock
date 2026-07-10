@@ -673,14 +673,119 @@ function MemorySpeedView() {
   );
 }
 
-type ViewId = "time-dilation" | "memory-speed";
+type BandwidthTier = {
+  id: string;
+  label: string;
+  detail: string;
+  bandwidth: number;
+};
+
+const BANDWIDTH_TIERS: BandwidthTier[] = [
+  { id: "pc-ddr5", label: "PC DDR5", detail: "Dual-channel DDR5-6400", bandwidth: 102.4 },
+  { id: "mac-studio", label: "Mac Studio", detail: "M3 Ultra unified memory", bandwidth: 819 },
+  { id: "rtx-5090", label: "RTX 5090", detail: "GDDR7 graphics memory", bandwidth: 1_792 },
+  { id: "blackwell-ultra", label: "Blackwell Ultra", detail: "HBM3e accelerator memory", bandwidth: 8_000 },
+];
+
+const DDR5_CROSSING_SECONDS = 8;
+
+function formatBandwidth(value: number) {
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })} GB/s`;
+}
+
+function MemoryBandwidthView() {
+  const dotRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      BANDWIDTH_TIERS.forEach((tier, index) => {
+        if (dotRefs.current[tier.id]) dotRefs.current[tier.id]!.style.left = `${20 + index * 20}%`;
+      });
+      return;
+    }
+
+    const start = performance.now();
+    let frame = 0;
+    const animate = (now: number) => {
+      BANDWIDTH_TIERS.forEach((tier) => {
+        const crossingMs = DDR5_CROSSING_SECONDS * 1000 * (BANDWIDTH_TIERS[0].bandwidth / tier.bandwidth);
+        const phase = ((now - start) / crossingMs) % 2;
+        const position = phase <= 1 ? phase : 2 - phase;
+        if (dotRefs.current[tier.id]) dotRefs.current[tier.id]!.style.left = `${position * 100}%`;
+      });
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div className="bandwidth-view">
+      <header className="bandwidth-hero">
+        <div>
+          <p className="eyebrow"><span /> COMPUTER ARCHITECTURE · 03</p>
+          <h1>How wide is<br />the <em>pipe?</em></h1>
+        </div>
+        <p className="intro">
+          Give every memory system the same block of data. The white points move at literal
+          bandwidth ratios, turning gigabytes per second into distance you can see.
+        </p>
+      </header>
+
+      <section className="bandwidth-race" aria-label="Memory bandwidth motion comparison">
+        <header className="bandwidth-race-header">
+          <div><span /> SAME DISTANCE · SAME DATA BLOCK</div>
+          <p>PC DDR5 is anchored at <strong>{DDR5_CROSSING_SECONDS.toFixed(0)} seconds</strong> per crossing.</p>
+        </header>
+        <div className="bandwidth-column-heads" aria-hidden="true">
+          <span>MEMORY SYSTEM</span><span>DATA IN MOTION</span><span>BANDWIDTH</span><span>ONE CROSSING</span>
+        </div>
+        {BANDWIDTH_TIERS.map((tier, index) => {
+          const crossingSeconds = DDR5_CROSSING_SECONDS * (BANDWIDTH_TIERS[0].bandwidth / tier.bandwidth);
+          return (
+            <article className="bandwidth-lane" key={tier.id}>
+              <div className="bandwidth-label">
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div><h2>{tier.label}</h2><p>{tier.detail}</p></div>
+              </div>
+              <div className="bandwidth-track">
+                <span className="bandwidth-terminal start" />
+                <span
+                  className="bandwidth-dot"
+                  ref={(element) => { dotRefs.current[tier.id] = element; }}
+                  aria-hidden="true"
+                />
+                <span className="bandwidth-terminal end" />
+              </div>
+              <strong className="bandwidth-value">{formatBandwidth(tier.bandwidth)}</strong>
+              <strong className="crossing-value">{crossingSeconds.toFixed(2)} sec</strong>
+            </article>
+          );
+        })}
+      </section>
+
+      <footer className="bandwidth-note">
+        <p><span className="footer-mark">✦</span><strong>What the motion means</strong></p>
+        <p>
+          The track length represents one equal-sized transfer. Because crossing time is inversely
+          proportional to bandwidth, an 8 TB/s lane crosses exactly 78.125× faster than 102.4 GB/s.
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+type ViewId = "time-dilation" | "memory-speed" | "memory-bandwidth";
 
 export default function Home() {
   const [view, setView] = useState<ViewId>("time-dilation");
 
   useEffect(() => {
     const syncHash = () => {
-      setView(window.location.hash === "#memory-speed" ? "memory-speed" : "time-dilation");
+      if (window.location.hash === "#memory-speed") setView("memory-speed");
+      else if (window.location.hash === "#memory-bandwidth") setView("memory-bandwidth");
+      else setView("time-dilation");
     };
     syncHash();
     window.addEventListener("hashchange", syncHash);
@@ -714,11 +819,22 @@ export default function Home() {
             <span className="nav-number">02</span>
             <span><strong>Memory speed</strong><small>Computer architecture</small></span>
           </a>
+          <a
+            href="#memory-bandwidth"
+            className={view === "memory-bandwidth" ? "is-active" : ""}
+            aria-current={view === "memory-bandwidth" ? "page" : undefined}
+            onClick={() => setView("memory-bandwidth")}
+          >
+            <span className="nav-number">03</span>
+            <span><strong>Memory bandwidth</strong><small>Throughput in motion</small></span>
+          </a>
         </nav>
-        <div className="nav-footer"><span>02</span> INTERACTIVE STUDIES</div>
+        <div className="nav-footer"><span>03</span> INTERACTIVE STUDIES</div>
       </aside>
       <section className="view-stage" aria-live="polite">
-        {view === "time-dilation" ? <TimeDilationView /> : <MemorySpeedView />}
+        {view === "time-dilation" && <TimeDilationView />}
+        {view === "memory-speed" && <MemorySpeedView />}
+        {view === "memory-bandwidth" && <MemoryBandwidthView />}
       </section>
     </main>
   );

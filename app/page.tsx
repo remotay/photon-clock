@@ -107,7 +107,6 @@ function TimeDilationView() {
 
   const gamma = 1 / Math.sqrt(1 - beta * beta);
   const movingRate = 1 / gamma;
-  const photonPathAngle = Math.atan2(Math.sqrt(1 - beta * beta), beta) * (180 / Math.PI);
 
   useEffect(() => {
     betaRef.current = beta;
@@ -500,10 +499,7 @@ function TimeDilationView() {
               aria-label="A tracking-camera view of a moving photon clock where light traces a longer diagonal path between mirrors"
             />
             <span className="camera-lock"><span /> CAMERA LOCKED TO CLOCK</span>
-            <span
-              className="path-label angle-label"
-              style={{ "--path-angle": `${-photonPathAngle}deg` } as React.CSSProperties}
-            >longer diagonal path</span>
+            <span className="path-label angle-label">longer diagonal path</span>
             <span className="motion-arrow">DIRECTION OF MOTION&nbsp;&nbsp;→</span>
           </div>
           <div className="rate-line"><span>Observed rate</span><strong>{movingRate.toFixed(3)} ×</strong></div>
